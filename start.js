@@ -43,12 +43,20 @@ const TARGET_GROWTH = 1.2;
  * @param {serversList} Array<string>
  * @param {targetGrowth} number
  */
-async function execOnscannedServer(ns, server, playerHackLevel, serversList, targetGrowth) {
+async function execOnscannedServer(
+	ns,
+	server,
+	playerHackLevel,
+	serversList,
+	targetGrowth,
+	scriptRAMUsage,
+	lowcostScriptRAMUsage
+) {
 	// First of all, clear server's running scripts
 	ns.killall(server);
 
 	/* ns.getServer() = {
-		"cpuCores": 1, => threads
+		"cpuCores": 1,
 		"ftpPortOpen": false,
 		"hasAdminRights": true,
 		"hostname": "n00dles",
@@ -74,11 +82,15 @@ async function execOnscannedServer(ns, server, playerHackLevel, serversList, tar
 		"serverGrowth": 3000
 	} */
 	const serverInfo = ns.getServer(server);
+	const serverCoresNumber = serverInfo.cpuCores;
 	const serverRequiredHackLevel = serverInfo.requiredHackingSkill;
-	const serverThreads = serverInfo.cpuCores;
 	const serverMaxRAM = serverInfo.maxRam;
 	const serverNumOpenPortsRequired = serverInfo.numOpenPortsRequired;
 	const serverPurchasedByPlayer = serverInfo.purchasedByPlayer;
+
+	// 64 / (3*10) => 2 threads for all scripts
+	// 16 / (3*10) => 1 thread max, all scripts wont run at max cost
+	const threadsToUse = Math.floor(serverMaxRAM / (scriptRAMUsage * serversList.length)) + 1 || 1;
 
 	let serverOpenPortCount = serverInfo.openPortCount;
 
@@ -116,18 +128,26 @@ async function execOnscannedServer(ns, server, playerHackLevel, serversList, tar
 			if (!ns.hasRootAccess(serverTarget)) return 0;
 
 			const serverRAMAvailable = serverMaxRAM - ns.getServerUsedRam(server);
-			const targetRequiredGrowthRun = Math.ceil(ns.growthAnalyze(serverTarget, targetGrowth));
+			const targetRequiredGrowthRun = Math.ceil(ns.growthAnalyze(serverTarget, targetGrowth, serverCoresNumber));
 			const targetMinSecLvl = ns.getServerMinSecurityLevel(serverTarget);
 
-			// Launch big only if it's possible to start it at least twice more. Else, prefer to launch
-			// 2 lowcost scripts
-			// 7 >= 3.1*2
-			if (serverRAMAvailable >= ns.getScriptRam(HACK_SCRIPT_NAME) * 2) {
-				ns.print(serverRAMAvailable, " ", ns.getScriptRam(HACK_SCRIPT_NAME) * 2, " Run high script");
-				return ns.exec(HACK_SCRIPT_NAME, server, serverThreads, serverTarget, targetRequiredGrowthRun, targetMinSecLvl);
-			} else if (serverRAMAvailable >= ns.getScriptRam(LOWCOST_HACK_SCRIPT_NAME)) {
-				ns.print(serverRAMAvailable, " ", ns.getScriptRam(HACK_SCRIPT_NAME) * 2, " Run low script");
-				return ns.exec(LOWCOST_HACK_SCRIPT_NAME, server, serverThreads, serverTarget);
+			// Launch big only if it's possible to start it at least N-Threads+1 more.
+			// Else, prefer to fullfill with lowcost scripts
+			// i.e: 7 >= 3.1*2
+			if (serverRAMAvailable >= scriptRAMUsage * threadsToUse + 1) {
+				ns.print(serversList.length);
+				return ns.exec(
+					HACK_SCRIPT_NAME,
+					server,
+					threadsToUse,
+					serverTarget,
+					targetRequiredGrowthRun,
+					targetMinSecLvl,
+					threadsToUse,
+					serverCoresNumber
+				);
+			} else if (serverRAMAvailable >= lowcostScriptRAMUsage) {
+				return ns.exec(LOWCOST_HACK_SCRIPT_NAME, server, 1, serverTarget);
 			} else {
 				// Not enough RAM for anything, breaking loop.
 				return 0;
@@ -139,17 +159,22 @@ async function execOnscannedServer(ns, server, playerHackLevel, serversList, tar
 /**
  * @param {NS} ns
  * @param {scannedServer} string
+ * @param {start} boolean
  */
 export async function main(ns, scannedServer = "home", start = true) {
 	// Small wait to avoid while(1) crash (Killable script)
-	await ns.sleep(10);
+	await ns.sleep(100);
 	// Home + All purchased servers
 	const ownedServersList = ["home"].concat(ns.getPurchasedServers());
-	const serversList = ns.scan(scannedServer).filter((server) => !ownedServersList.includes(server));
+	const serversList = ns.scan(scannedServer).filter((server) => {
+		return !ownedServersList.includes(server) && ns.hasRootAccess(server);
+	});
 	const playerHackLevel = ns.getHackingLevel();
+	const scriptRAMUsage = ns.getScriptRam(HACK_SCRIPT_NAME);
+	const lowcostScriptRAMUsage = ns.getScriptRam(LOWCOST_HACK_SCRIPT_NAME);
 
 	// Make a general hackable servers list to try to hack maximum servers between each others
-	HACKABLE_SERVERS_LIST = HACKABLE_SERVERS_LIST.concat(serversList);
+	HACKABLE_SERVERS_LIST = [...new Set(HACKABLE_SERVERS_LIST.concat(serversList))];
 	// Once a server has been hack, store it in a "already hacked servers list"
 	HACKED_SERVERS_LIST.push(scannedServer);
 
@@ -160,12 +185,20 @@ export async function main(ns, scannedServer = "home", start = true) {
 
 	// For each hackable server
 	for (const server of HACKABLE_SERVERS_LIST) {
-		// ns.print(`=============== HACKING ${server} FROM ${scannedServer}`)
+		//ns.print(`=============== HACKING ${server} FROM ${scannedServer}`)
 
 		// Don't start script on an already hacked server, it's useless
 		// Avoid loop between servers on scan-analyze N+X
 		if (!HACKED_SERVERS_LIST.includes(server)) {
-			await execOnscannedServer(ns, server, playerHackLevel, HACKABLE_SERVERS_LIST, TARGET_GROWTH);
+			await execOnscannedServer(
+				ns,
+				server,
+				playerHackLevel,
+				HACKABLE_SERVERS_LIST,
+				TARGET_GROWTH,
+				scriptRAMUsage,
+				lowcostScriptRAMUsage
+			);
 
 			// Recursivity to hack scan-analyze N+X servers
 			await main(ns, server, false);
@@ -176,7 +209,15 @@ export async function main(ns, scannedServer = "home", start = true) {
 	// Start hacking as much servers as possible from our purchased servers
 	if (scannedServer === "home" && start) {
 		for (const ownedServer of ownedServersList.slice(1)) {
-			await execOnscannedServer(ns, ownedServer, playerHackLevel, HACKABLE_SERVERS_LIST, TARGET_GROWTH);
+			await execOnscannedServer(
+				ns,
+				ownedServer,
+				playerHackLevel,
+				HACKABLE_SERVERS_LIST,
+				TARGET_GROWTH,
+				scriptRAMUsage,
+				lowcostScriptRAMUsage
+			);
 		}
 	}
 }
