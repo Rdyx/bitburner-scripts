@@ -1,6 +1,3 @@
-import { autoBuyServers } from "autoBuyServers.js";
-import { autoBuyAndUpgradeHacknetNodes } from "autoBuyAndUpgradeHacknetNodes.js";
-
 // Array<
 //  * 	{
 //  *	  "cpuCores":1,
@@ -37,10 +34,11 @@ const SCRIPTS_LIST = ["autoBaseLoop.js", "autoLowcostBaseLoop.js", "baseLoop.js"
 const HACK_SCRIPT_NAME = "autoBaseLoop.js";
 // Low cost hack script to fullfill remaining RAM
 const LOWCOST_HACK_SCRIPT_NAME = "autoLowcostBaseLoop.js";
+// List of hacked servers to avoid loops within recursivity
 // Growth target
 const TARGET_GROWTH = 10;
 // Max grow run to avoid mega-unworthy-waits
-const GROWTH_RUNS_CAP = 5;
+const GROWTH_RUNS_CAP = 20;
 
 /**
  * @param {NS} ns
@@ -121,9 +119,7 @@ function execOnServer(ns, server, serversList) {
   const threadsToUse = Math.floor(serverMaxRAM / (scriptRAMUsage * serversList.length)) + 1 || 1;
 
   // Stop running scripts
-  //if (serverHostname !== 'home') ns.killall(serverHostname);
-  ns.scriptKill("autoBaseLoop.js", serverHostname);
-  ns.scriptKill("autoLowcostBaseLoop.js", serverHostname);
+  ns.killall(serverHostname);
 
   // Auto-launch scripts to hack each other server, we are using .every() to be able
   // To prematurely shutdown the loop (forEach doesn't support "break" keywork)
@@ -159,68 +155,155 @@ function execOnServer(ns, server, serversList) {
   });
 }
 
-/**
- * @param {NS} ns
- * @param {Array<Server>} serversList
- */
-function getServersInfoFromServersList(ns, serversList) {
-  return serversList.map((server) => ns.getServer(server));
-}
-
 /** @param {NS} ns */
 export async function main(ns) {
-  const waitTimeBetweenLoops = 60 * 60 * 1000;
+  ns.print(ns.serverExists("darkweb"));
+  // ns.print(ns.getServer('darkweb'))
+  ns.print(ns.getPurchasedServers());
 
-  // Creating a loop to autofind & hack new servers every X ms
-  while (1) {
-    const playerHackLevel = ns.getHackingLevel();
-    // Those servers are kinda special
-    const specialServers = ns.serverExists("darkweb")
-      ? getServersInfoFromServersList(ns, ["home", "darkweb"])
-      : getServersInfoFromServersList(ns, ["home"]);
+  // ns.singularity.installBackdoor()
 
-    let ownedServersList = getServersInfoFromServersList(ns, ns.getPurchasedServers());
-    ns.print(ns.getPurchasedServers());
-    // Buy/Replace servers with better RAM
-    autoBuyServers(ns, ownedServersList);
-    // Refresh ownedServersList
-    ns.print(ns.getPurchasedServers());
-    ownedServersList = getServersInfoFromServersList(ns, ns.getPurchasedServers());
+  // const hasTor = ns.singularity.purchaseTor();
 
-    // Get all servers
-    const serversList = getNonOwnedServers(ns, ownedServersList);
+  // ns.purcha
 
-    // Sort by available money, try to hack best profitable servers
-    serversList.sort((x, y) => (x.moneyAvailable > y.moneyAvailable ? -1 : 1));
+  // if (hasTor) {
+  // ns.print(ns.getDarkwebPrograms())
+  // }
+  // const waitTimeBetweenLoops = 3600000;
 
-    // Exec things on all servers
-    for (const server of serversList.concat(ownedServersList).concat(specialServers)) {
-      await ns.sleep(100);
+  // // Creating a loop to autofind & hack new servers every X ms
+  // while (1) {
+  //   const playerHackLevel = ns.getHackingLevel();
+  //   const ownedServersList = ["home"].concat(ns.getPurchasedServers());
 
-      // If we are not on one of our server, try to nuke it first
-      if (serversList.includes(server)) {
-        tryNukeServer(ns, playerHackLevel, server);
-      }
+  //   // Get all servers
+  //   const serversList = getNonOwnedServers(ns, ownedServersList);
 
-      // If we don't have admin access to the server, it's useless to get further
-      if (!server.hasAdminRights) continue;
+  //   // Sort by available money, try to hack best profitable servers
+  //   serversList.sort((x, y) => (x.moneyAvailable > y.moneyAvailable ? -1 : 1));
 
-      // Overwrite/copy scripts on server
-      await copyScripts(ns, server);
+  //   // Exec things on all servers
+  //   for (const server of serversList.concat(ownedServersList)) {
+  //     // If we are not on one of our server, try to nuke it first
+  //     if (serversList.includes(server)) {
+  //       tryNukeServer(ns, playerHackLevel, server);
+  //     }
 
-      execOnServer(
-        ns,
-        server,
-        serversList.filter(
-          (server) => server.hasAdminRights && !server.purchasedByPlayer && server.hostname !== "darkweb"
-        )
-      );
+  //     // If we don't have admin access to the server, it's useless to get further
+  //     if (!server.hasAdminRights) continue;
 
-      // Finally, dump rest of money into hacknet nodes
-      autoBuyAndUpgradeHacknetNodes(ns);
+  //     // Overwrite/copy scripts on server
+  //     await copyScripts(ns, server);
+
+  //     execOnServer(
+  //       ns,
+  //       server,
+  //       serversList.filter((server) => server.hasAdminRights)
+  //     );
+  //   }
+
+  //   ns.sleep(waitTimeBetweenLoops);
+  // }
+
+  // ns.hacknet.purchaseNode()
+
+  let buyNodes = 1;
+
+  while (buyNodes) {
+    const buyNodeCost = ns.hacknet.getPurchaseNodeCost();
+    // Get max of each, don't bother to buy lower upgrade levels (lazy mode on)
+    const upgradeMaxNodeLevelsCost = 292914755.9116215; // ns.hacknet.getCoreUpgradeCost(n,15)
+    const upgradeMaxNodeRAMCost = 4247930.409424215; // ns.hacknet.getRamUpgradeCost(n,6)
+    const upgradeMaxNodeCoresCost = 21335671.049209587; // ns.hacknet.getLevelUpgradeCost(n,199)
+
+    const overallBuyPrice = buyNodeCost + upgradeMaxNodeLevelsCost + upgradeMaxNodeRAMCost + upgradeMaxNodeCoresCost;
+
+    if (ns.hacknet.numNodes() < maxWantedNodes && overallBuyPrice < ns.getPlayer().money) {
+      // Buy node and upgrade everything at max
+      const nodeNumber = ns.hacknet.purchaseNode();
+      ns.hacknet.upgradeLevel(nodeNumber, 199);
+      ns.hacknet.upgradeRam(nodeNumber, 6);
+      ns.hacknet.upgradeCore(nodeNumber, 15);
+    } else {
+      buyNodes = 0;
     }
-
-    ns.print(`Next loop at ${new Date(Date.now() + waitTimeBetweenLoops)}`);
-    await ns.sleep(waitTimeBetweenLoops);
   }
+
+  // ns.killall('lollilol-2')
+  // ns.deleteServer('lollilol-2')
+  // // Max 2**20 ($60.864b)
+  // ns.purchaseServer('lollilol', 2**17) // 2**15 = $1.802b (x2 per **x)
+  // ns.print(ns.getServer('lollilol'))
+  // ns.print(ns.getPlayer().money)
+
+  // ns.print(ns.getPurchasedServerCost(2**15))
+  // formula: 2 (ram) || (110000)cost*((2**exponent)/2)
+
+  // Number of purchasable servers
+  // Math.floor(ns.getPlayer().money/(110000*((2**15)/2)))
+
+  // function findHighestBuyableExponent(ns) {
+  //   let exponent = 1;
+  //   while (ns.getPurchasedServerCost(2 ** exponent) < ns.getPlayer().money) {
+  //     exponent++
+  //     // ns.print(ns.getPlayer().money, ' ', ns.getPurchasedServerCost(2**exponent))
+  //   }
+  //   exponent--
+  //   return exponent
+  // }
+
+  // const exponent = findHighestBuyableExponent(ns);
+
+  // let buyableServers = Math.floor(ns.getPlayer().money / (110000 * ((2 ** exponent) / 2)));
+  // // Max 25 purchased servers
+  // buyableServers = buyableServers > 25 ? 25 : buyableServers;
+
+  // const ownedServersList = ns.getPurchasedServers().map((server) => ns.getServer(server));
+
+  // // Sort owned servers by maxRam ascending
+  // const ownedServersListSortedByRam = ownedServersList.sort((x, y) => x.maxRam > y.maxRam ? 1 : -1);
+  // ownedServersListSortedByRam.forEach(s => ns.print(s.maxRam))
+
+  // if (buyableServers != 0) {
+  //   // If we have purchased maximum servers, we need to delete one and replace it
+  //   if (ownedServersList.length === 25) {
+
+  //     ownedServersListSortedByRam.every((server, i) => {
+  //       const serverHostname = server.hostname;
+
+  //       // If we have bought all servers we could or we have replaced all replacable servers, break
+  //       if (buyableServers === 0 || i === ownedServersList) return 0;
+
+  //       if (server.maxRam < 2 ** (exponent)) {
+  //         ns.killall(serverHostname)
+  //         ns.deleteServer(serverHostname)
+  //         ns.purchaseServer(serverHostname, 2 ** exponent)
+  //         buyableServers--
+  //         return 1
+  //       }
+  //     })
+
+  //     // If we have room for other servers, simply buy
+  //   } else {
+  //     ns.print('purchaseServer lollilol ', 2 ** exponent)
+  //   }
+  // }
+
+  // while() {
+
+  // }
+
+  // While server cost < money, try next
+  // If not purchasable or exponent > 20, stop
+
+  // Replace server if total purchase = 25 and serverMaxRam < newServerMaxRam
+  // break if not enough money
+
+  //16 3.804
+  // 17  7.608
+  // 18 15.216
+  // 19 30.432
+  // 20 60.864
+  //ns.singularity.purchaseServer('home', 2^13)
 }
