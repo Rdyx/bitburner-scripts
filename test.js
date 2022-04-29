@@ -161,6 +161,10 @@ export async function main(ns) {
   // ns.print(ns.getServer('darkweb'))
   ns.print(ns.getPurchasedServers());
 
+  ns.print(ns.formulas.reputation.calculateFavorToRep(150));
+
+  ns.print(ns.getServer("ecorp"));
+
   // ns.singularity.installBackdoor()
 
   // const hasTor = ns.singularity.purchaseTor();
@@ -208,27 +212,27 @@ export async function main(ns) {
 
   // ns.hacknet.purchaseNode()
 
-  let buyNodes = 1;
+  // let buyNodes = 1;
 
-  while (buyNodes) {
-    const buyNodeCost = ns.hacknet.getPurchaseNodeCost();
-    // Get max of each, don't bother to buy lower upgrade levels (lazy mode on)
-    const upgradeMaxNodeLevelsCost = 292914755.9116215; // ns.hacknet.getCoreUpgradeCost(n,15)
-    const upgradeMaxNodeRAMCost = 4247930.409424215; // ns.hacknet.getRamUpgradeCost(n,6)
-    const upgradeMaxNodeCoresCost = 21335671.049209587; // ns.hacknet.getLevelUpgradeCost(n,199)
+  // while (buyNodes) {
+  //   const buyNodeCost = ns.hacknet.getPurchaseNodeCost();
+  //   // Get max of each, don't bother to buy lower upgrade levels (lazy mode on)
+  //   const upgradeMaxNodeLevelsCost = 292914755.9116215; // ns.hacknet.getCoreUpgradeCost(n,15)
+  //   const upgradeMaxNodeRAMCost = 4247930.409424215; // ns.hacknet.getRamUpgradeCost(n,6)
+  //   const upgradeMaxNodeCoresCost = 21335671.049209587; // ns.hacknet.getLevelUpgradeCost(n,199)
 
-    const overallBuyPrice = buyNodeCost + upgradeMaxNodeLevelsCost + upgradeMaxNodeRAMCost + upgradeMaxNodeCoresCost;
+  //   const overallBuyPrice = buyNodeCost+upgradeMaxNodeLevelsCost+upgradeMaxNodeRAMCost+upgradeMaxNodeCoresCost;
 
-    if (ns.hacknet.numNodes() < maxWantedNodes && overallBuyPrice < ns.getPlayer().money) {
-      // Buy node and upgrade everything at max
-      const nodeNumber = ns.hacknet.purchaseNode();
-      ns.hacknet.upgradeLevel(nodeNumber, 199);
-      ns.hacknet.upgradeRam(nodeNumber, 6);
-      ns.hacknet.upgradeCore(nodeNumber, 15);
-    } else {
-      buyNodes = 0;
-    }
-  }
+  //     if (ns.hacknet.numNodes() < maxWantedNodes && overallBuyPrice < ns.getPlayer().money) {
+  //       // Buy node and upgrade everything at max
+  //       const nodeNumber = ns.hacknet.purchaseNode();
+  //       ns.hacknet.upgradeLevel(nodeNumber, 199)
+  //       ns.hacknet.upgradeRam(nodeNumber, 6)
+  //       ns.hacknet.upgradeCore(nodeNumber, 15)
+  //     } else {
+  //       buyNodes = 0;
+  //     }
+  // }
 
   // ns.killall('lollilol-2')
   // ns.deleteServer('lollilol-2')
@@ -306,4 +310,6 @@ export async function main(ns) {
   // 19 30.432
   // 20 60.864
   //ns.singularity.purchaseServer('home', 2^13)
+
+  //ns.getServerMoneyAvailable('run4theh111z')
 }

@@ -9,15 +9,27 @@ function findHighestBuyableExponent(ns) {
 }
 
 /**
+ *
+ * @param {NS} ns
+ * @param {number} exponent
+ * @returns
+ */
+function getBuyableServersNumber(ns, exponent) {
+  return Math.floor(ns.getPlayer().money / (110000 * (2 ** exponent / 2)));
+}
+
+/**
  * @param {NS} ns
  * @param {Array<Server>} ownedServersList List of owned/purchased servers
  * @param {string} purchasedServersName Optionnal, default to "UwU" - Custom name for purchased servers
  * */
-export function autoBuyServers(ns, ownedServersList, purchasedServersName = "UwU") {
-  const exponent = findHighestBuyableExponent(ns);
+export async function autoBuyServers(ns, ownedServersList, purchasedServersName = "UwU") {
+  const freeServersSlots = 25 - ns.getPurchasedServers().length;
   // Sort owned servers by maxRam ascending
   const ownedServersListSortedByRam = ownedServersList.sort((x, y) => (x.maxRam > y.maxRam ? 1 : -1));
-  let buyableServers = Math.floor(ns.getPlayer().money / (110000 * (2 ** exponent / 2)));
+
+  let exponent = findHighestBuyableExponent(ns);
+  let buyableServers = getBuyableServersNumber(ns, exponent);
   // Max 25 purchased servers
   buyableServers = buyableServers > 25 ? 25 : buyableServers;
 
@@ -41,6 +53,17 @@ export function autoBuyServers(ns, ownedServersList, purchasedServersName = "UwU
 
       // If we have room for other servers, simply buy
     } else {
+      // Fullfill available servers slots, find the highest exponent able to fill
+      while (buyableServers < freeServersSlots && exponent > 0) {
+        buyableServers = getBuyableServersNumber(ns, exponent);
+        exponent--;
+
+        await ns.sleep(10);
+      }
+
+      // If the found exponent allows us to buy more servers than free slots, buy enough to fill free slots
+      buyableServers = buyableServers > freeServersSlots ? freeServersSlots : buyableServers;
+
       while (buyableServers > 0) {
         if (ns.getPurchasedServers().length < 25) {
           ns.purchaseServer(purchasedServersName, 2 ** exponent);
@@ -52,7 +75,11 @@ export function autoBuyServers(ns, ownedServersList, purchasedServersName = "UwU
             ns.getPurchasedServers().map((server) => ns.getServer(server)),
             purchasedServersName
           );
+          break;
         }
+
+        // Avoid while loop freezes
+        await ns.sleep(10);
       }
     }
   }

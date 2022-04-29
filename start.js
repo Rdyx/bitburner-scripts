@@ -106,7 +106,7 @@ async function copyScripts(ns, server) {
 /**
  * @param {NS} ns
  * @param {Server} server
- * @param {Array<Server>} serversList
+ * @param {Array<Server>} serversList List of servers that will be hacked
  */
 function execOnServer(ns, server, serversList) {
   const serverHostname = server.hostname;
@@ -169,7 +169,8 @@ function getServersInfoFromServersList(ns, serversList) {
 
 /** @param {NS} ns */
 export async function main(ns) {
-  const waitTimeBetweenLoops = 60 * 60 * 1000;
+  // mins * 60 secs * 1000ms
+  const waitTimeBetweenLoops = 30 * 60 * 1000;
 
   // Creating a loop to autofind & hack new servers every X ms
   while (1) {
@@ -180,11 +181,9 @@ export async function main(ns) {
       : getServersInfoFromServersList(ns, ["home"]);
 
     let ownedServersList = getServersInfoFromServersList(ns, ns.getPurchasedServers());
-    ns.print(ns.getPurchasedServers());
     // Buy/Replace servers with better RAM
-    autoBuyServers(ns, ownedServersList);
+    await autoBuyServers(ns, ownedServersList);
     // Refresh ownedServersList
-    ns.print(ns.getPurchasedServers());
     ownedServersList = getServersInfoFromServersList(ns, ns.getPurchasedServers());
 
     // Get all servers
@@ -212,12 +211,13 @@ export async function main(ns) {
         ns,
         server,
         serversList.filter(
-          (server) => server.hasAdminRights && !server.purchasedByPlayer && server.hostname !== "darkweb"
+          (server) =>
+            server.hasAdminRights && !server.purchasedByPlayer && server.hostname !== "darkweb" && server.moneyAvailable
         )
       );
 
       // Finally, dump rest of money into hacknet nodes
-      autoBuyAndUpgradeHacknetNodes(ns);
+      await autoBuyAndUpgradeHacknetNodes(ns);
     }
 
     ns.print(`Next loop at ${new Date(Date.now() + waitTimeBetweenLoops)}`);

@@ -2,7 +2,7 @@
  * @param {NS} ns
  * @param {number} maxWantedNodes Optionnal, default 30 - Maximum hacknet nodes we want to autobuy
  */
-export function autoBuyAndUpgradeHacknetNodes(ns, maxWantedNodes = 30) {
+export async function autoBuyAndUpgradeHacknetNodes(ns, maxWantedNodes = 30) {
   let buyNodes = 1;
 
   while (buyNodes) {
@@ -23,5 +23,8 @@ export function autoBuyAndUpgradeHacknetNodes(ns, maxWantedNodes = 30) {
     } else {
       buyNodes = 0;
     }
+
+    // Avoid while loop freezes
+    await ns.sleep(10);
   }
 }

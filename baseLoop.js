@@ -22,6 +22,7 @@ async function weakenServer(ns, serverName, currServerSecLvl, serverMinSecLvl, w
   }
 }
 
+// TODO: keep?
 /**
  * @param {NS} ns
  * @param {string} serverName Name of target server
@@ -49,21 +50,18 @@ function getTargetRequiredGrowthRun(ns, serverName, growthTarget, growthRunsCap,
 /**
  * @param {NS} ns
  * @param {string} serverName Name of target server
- * @param {float} growthTarget Growth target
- * @param {number} growthRunsCap Maximum runs of growth to avoid to wait too much before hack()
- * @param {number} serverCoresNumber Number of cores used to grow
  */
-async function growServer(ns, serverName, growthTarget, growthRunsCap, serverCoresNumber) {
-  let requiredGrowthRun = 10; //getTargetRequiredGrowthRun(ns, serverName, growthTarget, growthRunsCap, serverCoresNumber);
+async function growServer(ns, serverName) {
+  let requiredGrowthRun = 10;
   let i = 0;
 
-  while (i < requiredGrowthRun) {
+  // Also break the loop if the server currently has max money
+  while (i < requiredGrowthRun && ns.getServerMaxMoney(serverName) !== ns.getServerMoneyAvailable(serverName)) {
     ns.print(`${requiredGrowthRun - i} grow run(s) required.`);
     await ns.grow(serverName);
 
     // Because we are running same scripts on same target on multiple servers,
     // we need to update the number of grow() runs after each grow() run
-    // requiredGrowthRun = getTargetRequiredGrowthRun(ns, serverName, growthTarget, growthRunsCap, serverCoresNumber);
     i++;
   }
 }
@@ -93,7 +91,7 @@ export async function baseLoop(
     let currServerSecLvl = getCurrServerSecLvl(ns, serverName);
 
     await weakenServer(ns, serverName, currServerSecLvl, serverMinSecLvl, weakenServerLvlStatus);
-    await growServer(ns, serverName, growthTarget, growthRunsCap, serverCoresNumber);
+    await growServer(ns, serverName);
 
     await ns.hack(serverName);
   }
