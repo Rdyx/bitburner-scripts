@@ -33,7 +33,8 @@ export async function autoBuyServers(ns, ownedServersList, purchasedServersName 
   // Max 25 purchased servers
   buyableServers = buyableServers > 25 ? 25 : buyableServers;
 
-  if (buyableServers != 0) {
+  // Buy only servers with 8GB RAM minimum
+  if (buyableServers != 0 && exponent >= 3) {
     // If we have purchased maximum servers, we need to delete one and replace it
     if (ownedServersList.length === 25) {
       ownedServersListSortedByRam.every((server, i) => {
@@ -58,7 +59,7 @@ export async function autoBuyServers(ns, ownedServersList, purchasedServersName 
         buyableServers = getBuyableServersNumber(ns, exponent);
         exponent--;
 
-        await ns.sleep(10);
+        await ns.sleep(20);
       }
 
       // If the found exponent allows us to buy more servers than free slots, buy enough to fill free slots
@@ -79,7 +80,7 @@ export async function autoBuyServers(ns, ownedServersList, purchasedServersName 
         }
 
         // Avoid while loop freezes
-        await ns.sleep(10);
+        await ns.sleep(20);
       }
     }
   }
