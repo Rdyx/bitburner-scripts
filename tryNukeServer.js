@@ -3,7 +3,7 @@
  * @param {number} playerHackLevel Current player hack level
  * @param {Server} server Server info
  */
-export function tryNukeServer(ns, playerHackLevel, server) {
+function tryNukeServer(ns, playerHackLevel, server) {
 	const serverRequiredHackLevel = server.requiredHackingSkill;
 	const serverNumOpenPortsRequired = server.numOpenPortsRequired;
 	const serverHostname = server.hostname;
