@@ -85,3 +85,12 @@ export async function autoBuyServers(ns, ownedServersList, purchasedServersName 
     }
   }
 }
+
+/** @param {NS} ns */
+export function main(ns) {
+  autoBuyServers(
+    ns,
+    ns.getPurchasedServers().map((server) => ns.getServer(server)),
+    ns.args[0]
+  );
+}

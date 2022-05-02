@@ -1,4 +1,4 @@
-import { baseLoop } from "baseLoop.js";
+import { baseLoop } from "baseLoops.js";
 
 /** @param {NS} ns */
 export async function main(ns) {

@@ -168,3 +168,8 @@ export async function autoBuyAndUpgradeHacknetNodes(ns, maxWantedNodes = 30) {
     await ns.sleep(1);
   }
 }
+
+/** @param {NS} ns */
+export async function main(ns) {
+  await autoBuyAndUpgradeHacknetNodes(ns, ns.args[0]);
+}
