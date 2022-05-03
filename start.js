@@ -33,11 +33,11 @@ import { tryNukeServer } from "tryNukeServer.js";
 //  *
 
 // List of required scripts
-const SCRIPTS_LIST = ["autobaseLoops.js", "autoLowcostbaseLoops.js", "baseLoops.js"];
+const SCRIPTS_LIST = ["autoBaseLoop.js", "autoLowcostBaseLoop.js", "baseLoops.js"];
 // Main hack script to "hard" hack
-const HACK_SCRIPT_NAME = "autobaseLoops.js";
+const HACK_SCRIPT_NAME = "autoBaseLoop.js";
 // Low cost hack script to fullfill remaining RAM
-const LOWCOST_HACK_SCRIPT_NAME = "autoLowcostbaseLoops.js";
+const LOWCOST_HACK_SCRIPT_NAME = "autoLowcostBaseLoop.js";
 // Growth target
 const TARGET_GROWTH = 10;
 // Max grow run to avoid mega-unworthy-waits
@@ -91,8 +91,8 @@ function execOnServer(ns, server, serversList) {
 
   // Stop running scripts
   //if (serverHostname !== 'home') ns.killall(serverHostname);
-  ns.scriptKill("autobaseLoops.js", serverHostname);
-  ns.scriptKill("autoLowcostbaseLoops.js", serverHostname);
+  ns.scriptKill("autoBaseLoop.js", serverHostname);
+  ns.scriptKill("autoLowcostBaseLoop.js", serverHostname);
 
   // Auto-launch scripts to hack each other server, we are using .every() to be able
   // To prematurely shutdown the loop (forEach doesn't support "break" keywork)

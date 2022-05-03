@@ -23,7 +23,7 @@ function getNodesStats(ns, nodesNumber) {
  * @param {number} production Upgrade earnings
  * @returns Earning per dollar spent
  */
-function getUpgradeEarningsPerDollarsSpent(cost, production) {
+function getUpgradeEarningsPerDollarSpent(cost, production) {
   return (production / cost).toPrecision(10);
 }
 
@@ -47,13 +47,20 @@ function calculateMoneyGainRate(level, ram, cores, mult = 1) {
   return levelMult * ramMult * coresMult * mult;
 }
 
+/**
+ *
+ * @param {NS} ns
+ * @param {number} nodeIndex
+ * @param {Array<NodeStats>} nodesInfo
+ * @returns
+ */
 function getEfficientSpendingList(ns, nodeIndex, nodesInfo) {
   const purchaseNodeCost = ns.hacknet.getPurchaseNodeCost();
 
-  const efficientSpendingList = [
+  let efficientSpendingList = [
     {
       nodeIndex: nodeIndex,
-      productionPerDollarsSpent: getUpgradeEarningsPerDollarsSpent(purchaseNodeCost, calculateMoneyGainRate(1, 1, 1)),
+      productionPerDollarSpent: getUpgradeEarningsPerDollarSpent(purchaseNodeCost, calculateMoneyGainRate(1, 1, 1)),
       upgradeType: "node",
       upgradeCost: purchaseNodeCost,
     },
@@ -64,38 +71,39 @@ function getEfficientSpendingList(ns, nodeIndex, nodesInfo) {
 
     let nodeObject = {
       nodeIndex: nodeIndex,
-      productionPerDollarsSpent: 0,
+      productionPerDollarSpent: 0,
       upgradeType: "",
       upgradeCost: 0,
     };
 
+    // Upgrade costs
     const levelUpgradeCost = ns.hacknet.getLevelUpgradeCost(nodeIndex);
     const ramUpgradeCost = ns.hacknet.getRamUpgradeCost(nodeIndex);
     const coreUpgradeCost = ns.hacknet.getCoreUpgradeCost(nodeIndex);
 
-    //gainRate/cost = prod/dollar
-
+    // Upgrade earnings
     const nextLevelProduction = calculateMoneyGainRate(node.level + 1, node.ram, node.cores);
     const nextRAMProduction = calculateMoneyGainRate(node.level, node.ram + 1, node.cores);
     const nextCoreProduction = calculateMoneyGainRate(node.level, node.ram, node.cores + 1);
 
-    const nextLevelEarningPerDollarsSpent = getUpgradeEarningsPerDollarsSpent(levelUpgradeCost, nextLevelProduction);
-    const nextRAMEarningPerDollarsSpent = getUpgradeEarningsPerDollarsSpent(ramUpgradeCost, nextRAMProduction);
-    const nextCoreEarningPerDollarsSpent = getUpgradeEarningsPerDollarsSpent(coreUpgradeCost, nextCoreProduction);
+    // Upgrade earnings per dollar
+    const nextLevelEarningPerDollarSpent = getUpgradeEarningsPerDollarSpent(levelUpgradeCost, nextLevelProduction);
+    const nextRAMEarningPerDollarSpent = getUpgradeEarningsPerDollarSpent(ramUpgradeCost, nextRAMProduction);
+    const nextCoreEarningPerDollarSpent = getUpgradeEarningsPerDollarSpent(coreUpgradeCost, nextCoreProduction);
 
     if (
-      nextLevelEarningPerDollarsSpent > nextRAMEarningPerDollarsSpent &&
-      nextLevelEarningPerDollarsSpent > nextCoreEarningPerDollarsSpent
+      nextLevelEarningPerDollarSpent > nextRAMEarningPerDollarSpent &&
+      nextLevelEarningPerDollarSpent > nextCoreEarningPerDollarSpent
     ) {
-      nodeObject.productionPerDollarsSpent = nextLevelEarningPerDollarsSpent;
+      nodeObject.productionPerDollarSpent = nextLevelEarningPerDollarSpent;
       nodeObject.upgradeType = "level";
       nodeObject.upgradeCost = levelUpgradeCost;
-    } else if (nextRAMEarningPerDollarsSpent > nextCoreEarningPerDollarsSpent) {
-      nodeObject.productionPerDollarsSpent = nextRAMEarningPerDollarsSpent;
+    } else if (nextRAMEarningPerDollarSpent > nextCoreEarningPerDollarSpent) {
+      nodeObject.productionPerDollarSpent = nextRAMEarningPerDollarSpent;
       nodeObject.upgradeType = "ram";
       nodeObject.upgradeCost = ramUpgradeCost;
     } else {
-      nodeObject.productionPerDollarsSpent = nextCoreEarningPerDollarsSpent;
+      nodeObject.productionPerDollarSpent = nextCoreEarningPerDollarSpent;
       nodeObject.upgradeType = "cores";
       nodeObject.upgradeCost = coreUpgradeCost;
     }
@@ -103,9 +111,10 @@ function getEfficientSpendingList(ns, nodeIndex, nodesInfo) {
     efficientSpendingList.push(nodeObject);
   }
 
-  efficientSpendingList
-    .filter((x) => x.productionPerDollarsSpent)
-    .sort((x, y) => (x.productionPerDollarsSpent > y.productionPerDollarsSpent ? -1 : 1));
+  // Remove maxxed nodes
+  efficientSpendingList = efficientSpendingList.filter((x) => x.productionPerDollarSpent > 0);
+  // Sort nodes desc by efficient upgrade cost
+  efficientSpendingList.sort((x, y) => (x.productionPerDollarSpent > y.productionPerDollarSpent ? -1 : 1));
 
   return efficientSpendingList;
 }
@@ -114,17 +123,17 @@ export async function main(ns) {
   ns.tail();
 
   const ownedNodesNumber = ns.hacknet.numNodes();
-
   const nodesInfo = getNodesStats(ns, ownedNodesNumber);
-
   const efficientSpendingList = getEfficientSpendingList(ns, ownedNodesNumber, nodesInfo);
 
   ns.print(nodesInfo);
 
-  ns.print(efficientSpendingList);
+  ns.print("ttt", efficientSpendingList);
 
+  // Due to desc sort, 1st index is the best choice to upgrade
   const upgradeType = efficientSpendingList[0].upgradeType;
 
+  // Execute different things depending on best upgrade type
   if (upgradeType === "node") {
     ns.print("buy node");
     // ns.hacknet.purchaseNode();
@@ -136,30 +145,6 @@ export async function main(ns) {
     // ns.hacknet.upgradeCore(efficientSpendingList[0]);
   }
 
-  // Get the cheapest upgrade cost
+  // Return the cheapest upgrade cost found among the list
   return efficientSpendingList.reduce((prev, curr) => (prev.upgradeCost < curr.upgradeCost ? prev : curr)).upgradeCost;
-
-  // {'nodeIndex': 0, 'nodeProductionIncrease': 0, 'nodeUpgradeType': "buy_server"}
-
-  // let buyNodes = 1;
-
-  // while (buyNodes) {
-  //   const buyNodeCost = ns.hacknet.getPurchaseNodeCost();
-  //   // Get max of each, don't bother to buy lower upgrade levels (lazy mode on)
-  //   const upgradeMaxNodeLevelsCost = 292914755.9116215; // ns.hacknet.getCoreUpgradeCost(n,15)
-  //   const upgradeMaxNodeRAMCost = 4247930.409424215; // ns.hacknet.getRamUpgradeCost(n,6)
-  //   const upgradeMaxNodeCoresCost = 21335671.049209587; // ns.hacknet.getLevelUpgradeCost(n,199)
-
-  //   const overallBuyPrice = buyNodeCost+upgradeMaxNodeLevelsCost+upgradeMaxNodeRAMCost+upgradeMaxNodeCoresCost;
-
-  //     if (ns.hacknet.numNodes() < maxWantedNodes && overallBuyPrice < ns.getPlayer().money) {
-  //       // Buy node and upgrade everything at max
-  //       const nodeNumber = ns.hacknet.purchaseNode();
-  //       ns.hacknet.upgradeLevel(nodeNumber, 199)
-  //       ns.hacknet.upgradeRam(nodeNumber, 6)
-  //       ns.hacknet.upgradeCore(nodeNumber, 15)
-  //     } else {
-  //       buyNodes = 0;
-  //     }
-  // }
 }

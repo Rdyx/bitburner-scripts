@@ -150,8 +150,10 @@ export async function autoBuyAndUpgradeHacknetNodes(ns, maxWantedNodes = 30) {
 
     // Execute different things depending on best upgrade type
     if (upgradeType === "node") {
-      ns.print("buy node");
       ns.hacknet.purchaseNode();
+      // After buying we (almost?) always have enough money to upgrade it directly
+      // So skip next steps
+      continue;
     } else if (upgradeType === "level") {
       ns.hacknet.upgradeLevel(upgradeNodeIndex);
     } else if (upgradeType === "ram") {
