@@ -29,12 +29,13 @@ export async function autoBuyServers(ns, ownedServersList, purchasedServersName 
   const ownedServersListSortedByRam = ownedServersList.sort((x, y) => (x.maxRam > y.maxRam ? 1 : -1));
 
   let exponent = findHighestBuyableExponent(ns);
+  const isAboveMinExponent = exponent >= 3;
   let buyableServers = getBuyableServersNumber(ns, exponent);
   // Max 25 purchased servers
   buyableServers = buyableServers > 25 ? 25 : buyableServers;
 
-  // Buy only servers with 16GB RAM minimum
-  if (buyableServers != 0 && exponent >= 4) {
+  // Buy only servers with 8GB RAM minimum
+  if (buyableServers != 0 && isAboveMinExponent) {
     // If we have purchased maximum servers, we need to delete one and replace it
     if (ownedServersList.length === 25) {
       ownedServersListSortedByRam.every((server, i) => {
@@ -55,7 +56,7 @@ export async function autoBuyServers(ns, ownedServersList, purchasedServersName 
       // If we have room for other servers, simply buy
     } else {
       // Fullfill available servers slots, find the highest exponent able to fill
-      while (buyableServers < freeServersSlots && exponent > 0) {
+      while (buyableServers < freeServersSlots && isAboveMinExponent) {
         buyableServers = getBuyableServersNumber(ns, exponent);
         exponent--;
 
