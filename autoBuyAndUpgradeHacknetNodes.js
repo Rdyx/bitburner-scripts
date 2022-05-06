@@ -129,7 +129,11 @@ function getEfficientSpendingList(ns, nodeIndex, nodesInfo, playerMoney) {
 export async function autoBuyAndUpgradeHacknetNodes(ns, maxWantedNodes = 30) {
   let minUpgradeCost = -Infinity;
 
-  while (ns.hacknet.numNodes() < maxWantedNodes && ns.getPlayer().money >= minUpgradeCost) {
+  // While (1<30 && 10 >= 5) || 10 >= 5
+  while (
+    (ns.hacknet.numNodes() < maxWantedNodes && ns.getPlayer().money >= minUpgradeCost) ||
+    ns.getPlayer().money >= minUpgradeCost
+  ) {
     const ownedNodesNumber = ns.hacknet.numNodes();
     const playerMoney = ns.getPlayer().money;
     const nodesInfo = getNodesStats(ns, ownedNodesNumber);
