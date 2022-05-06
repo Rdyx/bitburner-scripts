@@ -33,8 +33,8 @@ export async function autoBuyServers(ns, ownedServersList, purchasedServersName 
   // Max 25 purchased servers
   buyableServers = buyableServers > 25 ? 25 : buyableServers;
 
-  // Buy only servers with 8GB RAM minimum
-  if (buyableServers != 0 && exponent >= 3) {
+  // Buy only servers with 16GB RAM minimum
+  if (buyableServers != 0 && exponent >= 4) {
     // If we have purchased maximum servers, we need to delete one and replace it
     if (ownedServersList.length === 25) {
       ownedServersListSortedByRam.every((server, i) => {
