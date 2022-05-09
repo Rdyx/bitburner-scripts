@@ -41,10 +41,10 @@ const LOWCOST_HACK_SCRIPT_NAME = "autoLowcostBaseLoop.js";
 
 /** @param {NS} ns */
 async function getOwnedServersList(ns) {
-  const ownedServersList = getServersInfoFromServersList(ns, ns.getPurchasedServers());
-  // Buy/Replace servers with better RAM
-  await autoBuyServers(ns, ownedServersList);
-  return getServersInfoFromServersList(ns, ns.getPurchasedServers());
+	const ownedServersList = getServersInfoFromServersList(ns, ns.getPurchasedServers());
+	// Buy/Replace servers with better RAM
+	await autoBuyServers(ns, ownedServersList);
+	return getServersInfoFromServersList(ns, ns.getPurchasedServers());
 }
 
 /**
@@ -53,16 +53,16 @@ async function getOwnedServersList(ns) {
  * @param {Array<string>} serversList Optionnal - List of servers' names
  */
 function getNonOwnedServersList(ns, ownedServersHostnamesList, serversList = ["home"]) {
-  // Get all servers with pseudo-recursivity, make list of unique names with Set()
-  for (let i = 0; i < serversList.length; i++) {
-    serversList = [...new Set(serversList.concat(ns.scan(serversList[i])))];
-  }
+	// Get all servers with pseudo-recursivity, make list of unique names with Set()
+	for (let i = 0; i < serversList.length; i++) {
+		serversList = [...new Set(serversList.concat(ns.scan(serversList[i])))];
+	}
 
-  // Remove purchased servers
-  serversList = serversList.filter((server) => !ownedServersHostnamesList.includes(server));
+	// Remove purchased servers
+	serversList = serversList.filter((server) => !ownedServersHostnamesList.includes(server));
 
-  // Return list of servers info
-  return serversList.map((server) => ns.getServer(server));
+	// Return list of servers info
+	return serversList.map((server) => ns.getServer(server));
 }
 
 /**
@@ -71,7 +71,7 @@ function getNonOwnedServersList(ns, ownedServersHostnamesList, serversList = ["h
  * @param {number} serversListLength Number of servers left
  */
 function getThreadsNumber(serverRAMAvailable, scriptRAMUsage, serversListLength) {
-  return Math.floor(serverRAMAvailable / (scriptRAMUsage * serversListLength)) || 1;
+	return Math.floor(serverRAMAvailable / (scriptRAMUsage * serversListLength)) || 1;
 }
 
 /**
@@ -79,10 +79,10 @@ function getThreadsNumber(serverRAMAvailable, scriptRAMUsage, serversListLength)
  * @param {Server} server Server info
  */
 async function copyScripts(ns, server) {
-  // Copy required scripts
-  for (const script of SCRIPTS_LIST) {
-    await ns.scp(script, server.hostname);
-  }
+	// Copy required scripts
+	for (const script of SCRIPTS_LIST) {
+		await ns.scp(script, server.hostname);
+	}
 }
 
 /**
@@ -91,59 +91,55 @@ async function copyScripts(ns, server) {
  * @param {Array<Server>} serversList List of servers that will be hacked
  */
 function execOnServer(ns, server, serversList) {
-  // Create shallow copy to avoid alterating the original serversList
-  const serversListShallowCopy = [...serversList];
+	const serverHostname = server.hostname;
+	const serverMaxRAM = server.maxRam;
+	const serverCoresNumber = server.cpuCores;
 
-  const serverHostname = server.hostname;
-  const serverMaxRAM = server.maxRam;
-  const serverCoresNumber = server.cpuCores;
+	const scriptRAMUsage = ns.getScriptRam(HACK_SCRIPT_NAME);
+	const lowcostScriptRAMUsage = ns.getScriptRam(LOWCOST_HACK_SCRIPT_NAME);
 
-  const scriptRAMUsage = ns.getScriptRam(HACK_SCRIPT_NAME);
-  const lowcostScriptRAMUsage = ns.getScriptRam(LOWCOST_HACK_SCRIPT_NAME);
+	let serversListStartLength = serversList.length;
 
-  // Stop running scripts
-  ns.scriptKill(HACK_SCRIPT_NAME, serverHostname);
-  ns.scriptKill(LOWCOST_HACK_SCRIPT_NAME, serverHostname);
+	// Stop running scripts
+	ns.scriptKill(HACK_SCRIPT_NAME, serverHostname);
+	ns.scriptKill(LOWCOST_HACK_SCRIPT_NAME, serverHostname);
 
-  // Auto-launch scripts to hack each other server, we are using .every() to be able
-  // To prematurely shutdown the loop (forEach doesn't support "break" keywork)
-  // Any "false" will break the .every() loop
-  serversListShallowCopy.every((serverTarget, index) => {
-    const serverTargetHostname = serverTarget.hostname;
-    const serverRAMAvailable = serverMaxRAM - ns.getServerUsedRam(serverHostname);
-    const targetMinSecLvl = ns.getServerMinSecurityLevel(serverTargetHostname);
+	// Auto-launch scripts to hack each other server, we are using .every() to be able
+	// To prematurely shutdown the loop (forEach doesn't support "break" keywork)
+	// Any "false" will break the .every() loop
+	serversList.every((serverTarget) => {
+		const serverTargetHostname = serverTarget.hostname;
+		const serverRAMAvailable = serverMaxRAM - ns.getServerUsedRam(serverHostname);
+		const targetMinSecLvl = ns.getServerMinSecurityLevel(serverTargetHostname);
 
-    // 64 / (3*10) => 2 threads for all scripts
-    // 16 / (3*10) => 1 thread max, all scripts wont run at max cost
-    const threadsToUse = getThreadsNumber(serverRAMAvailable, scriptRAMUsage, serversListShallowCopy.length);
-    // 32 / (2*(10-(7+1)))
-    const lowcostThreadsToUse = getThreadsNumber(
-      serverRAMAvailable,
-      lowcostScriptRAMUsage,
-      serversListShallowCopy.length
-    );
+		// 64 / (3*10) => 2 threads for all scripts
+		// 16 / (3*10) => 1 thread max, all scripts wont run at max cost
+		const threadsToUse = getThreadsNumber(serverRAMAvailable, scriptRAMUsage, serversListStartLength);
+		// 32 / (2*(10-(7+1)))
+		const lowcostThreadsToUse = getThreadsNumber(serverRAMAvailable, lowcostScriptRAMUsage, serversListStartLength);
 
-    // If we can launch lowcost script with double thread but can't for "big" script, go for small script
-    if (serverRAMAvailable <= scriptRAMUsage * 2 && serverRAMAvailable >= lowcostScriptRAMUsage * 2) {
-      return ns.exec(LOWCOST_HACK_SCRIPT_NAME, serverHostname, 2, serverTargetHostname);
-    } else if (serverRAMAvailable >= scriptRAMUsage * threadsToUse) {
-      return ns.exec(
-        HACK_SCRIPT_NAME,
-        serverHostname,
-        threadsToUse,
-        serverTargetHostname,
-        targetMinSecLvl,
-        threadsToUse,
-        serverCoresNumber
-      );
-    } else if (serverRAMAvailable >= lowcostScriptRAMUsage * lowcostThreadsToUse) {
-      serversListShallowCopy.pop();
-      return ns.exec(LOWCOST_HACK_SCRIPT_NAME, serverHostname, lowcostThreadsToUse, serverTargetHostname);
-    } else {
-      // Not enough RAM for anything, breaking loop.
-      return 0;
-    }
-  });
+		serversListStartLength--;
+
+		// If we can launch lowcost script with double thread but can't for "big" script, go for small script
+		if (serverRAMAvailable <= scriptRAMUsage * 2 && serverRAMAvailable >= lowcostScriptRAMUsage * 2) {
+			return ns.exec(LOWCOST_HACK_SCRIPT_NAME, serverHostname, 2, serverTargetHostname);
+		} else if (serverRAMAvailable >= scriptRAMUsage * threadsToUse) {
+			return ns.exec(
+				HACK_SCRIPT_NAME,
+				serverHostname,
+				threadsToUse,
+				serverTargetHostname,
+				targetMinSecLvl,
+				threadsToUse,
+				serverCoresNumber
+			);
+		} else if (serverRAMAvailable >= lowcostScriptRAMUsage * lowcostThreadsToUse) {
+			return ns.exec(LOWCOST_HACK_SCRIPT_NAME, serverHostname, lowcostThreadsToUse, serverTargetHostname);
+		} else {
+			// Not enough RAM for anything, breaking loop.
+			return 0;
+		}
+	});
 }
 
 /**
@@ -151,62 +147,62 @@ function execOnServer(ns, server, serversList) {
  * @param {Array<Server>} serversList
  */
 function getServersInfoFromServersList(ns, serversList) {
-  return serversList.map((server) => ns.getServer(server));
+	return serversList.map((server) => ns.getServer(server));
 }
 
 /** @param {NS} ns */
 export async function main(ns) {
-  // Show log window
-  ns.tail();
+	// Show log window
+	ns.tail();
 
-  const waitTimeArg = ns.args[0] || 20;
-  // mins * 60 secs * 1000ms
-  const waitTimeBetweenLoops = waitTimeArg * 60 * 1000;
+	const waitTimeArg = ns.args[0] || 20;
+	// mins * 60 secs * 1000ms
+	const waitTimeBetweenLoops = waitTimeArg * 60 * 1000;
 
-  // Creating a loop to autofind & hack new servers every X ms
-  while (1) {
-    const playerHackLevel = ns.getHackingLevel();
-    // Those servers are kinda special
-    const specialServers = getServersInfoFromServersList(ns, ["home"]);
-    if (ns.serverExists("darkweb")) specialServers.push(getServersInfoFromServersList(ns, ["darkweb"]));
+	// Creating a loop to autofind & hack new servers every X ms
+	while (1) {
+		const playerHackLevel = ns.getHackingLevel();
+		// Those servers are kinda special
+		const specialServers = getServersInfoFromServersList(ns, ["home"]);
+		if (ns.serverExists("darkweb")) specialServers.push(getServersInfoFromServersList(ns, ["darkweb"]));
 
-    const ownedServersList = await getOwnedServersList(ns);
+		const ownedServersList = await getOwnedServersList(ns);
 
-    // Get all non owned servers
-    const serversList = getNonOwnedServersList(
-      ns,
-      ownedServersList.concat(specialServers).map((x) => x.hostname)
-    );
+		// Get all non owned servers
+		const serversList = getNonOwnedServersList(
+			ns,
+			ownedServersList.concat(specialServers).map((x) => x.hostname)
+		);
 
-    // Sort by available money, try to hack best profitable servers
-    serversList.sort((x, y) => (x.moneyAvailable > y.moneyAvailable ? -1 : 1));
+		// Sort by available money, try to hack best profitable servers
+		serversList.sort((x, y) => (x.moneyAvailable > y.moneyAvailable ? 1 : -1));
 
-    // Exec things on all servers
-    for (const server of serversList.concat(ownedServersList).concat(specialServers)) {
-      // If we are not on one of our server, try to nuke it first
-      if (serversList.includes(server) && !server.purchasedByPlayer) {
-        tryNukeServer(ns, playerHackLevel, server);
-      }
+		// Exec things on all servers
+		for (const server of serversList.concat(ownedServersList).concat(specialServers)) {
+			// If we are not on one of our server, try to nuke it first
+			if (serversList.includes(server) && !server.purchasedByPlayer) {
+				tryNukeServer(ns, playerHackLevel, server);
+			}
 
-      // If we don't have admin access to the server or server maxRam === 0, it's useless to get further
-      if (!server.hasAdminRights) continue;
+			// If we don't have admin access to the server or server maxRam === 0, it's useless to get further
+			if (!server.hasAdminRights) continue;
 
-      // Overwrite/copy scripts on server
-      await copyScripts(ns, server);
+			// Overwrite/copy scripts on server
+			await copyScripts(ns, server);
 
-      execOnServer(
-        ns,
-        server,
-        serversList.filter((server) => server.hasAdminRights && !server.purchasedByPlayer && server.moneyAvailable)
-      );
+			execOnServer(
+				ns,
+				server,
+				serversList.filter((server) => server.hasAdminRights && !server.purchasedByPlayer && server.moneyAvailable)
+			);
 
-      await ns.sleep(20);
-    }
+			await ns.sleep(100);
+		}
 
-    // Finally, dump rest of money into hacknet nodes
-    await autoBuyAndUpgradeHacknetNodes(ns);
+		// Finally, dump rest of money into hacknet nodes
+		await autoBuyAndUpgradeHacknetNodes(ns);
 
-    ns.print(`Next loop at ${new Date(Date.now() + waitTimeBetweenLoops)}`);
-    await ns.sleep(waitTimeBetweenLoops);
-  }
+		ns.print(`Next loop at ${new Date(Date.now() + waitTimeBetweenLoops)}`);
+		await ns.sleep(waitTimeBetweenLoops);
+	}
 }
