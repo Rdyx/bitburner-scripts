@@ -134,7 +134,7 @@ export async function autoBuyAndUpgradeHacknetNodes(ns, maxWantedNodes = 30) {
     const ownedNodesNumber = ns.hacknet.numNodes();
     const playerMoney = ns.getPlayer().money;
     const nodesInfo = getNodesStats(ns, ownedNodesNumber);
-    const efficientSpendingList = getEfficientSpendingList(ns, ownedNodesNumber, nodesInfo, playerMoney);
+    let efficientSpendingList = getEfficientSpendingList(ns, ownedNodesNumber, nodesInfo, playerMoney);
 
     // If we reached our wanted nodes number, remove the possibility to buy a new one
     if (ownedNodesNumber === maxWantedNodes) {
