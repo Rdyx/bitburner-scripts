@@ -131,49 +131,45 @@ export async function autoBuyAndUpgradeHacknetNodes(ns, maxWantedNodes = 30) {
 
   // While (1<30 && 10 >= 5) || 10 >= 5
   while (ns.getPlayer().money >= minUpgradeCost) {
-    if (ns.hacknet.numNodes() < maxWantedNodes) {
+    const ownedNodesNumber = ns.hacknet.numNodes();
+    const playerMoney = ns.getPlayer().money;
+    const nodesInfo = getNodesStats(ns, ownedNodesNumber);
+    const efficientSpendingList = getEfficientSpendingList(ns, ownedNodesNumber, nodesInfo, playerMoney);
 
-      const ownedNodesNumber = ns.hacknet.numNodes();
-      const playerMoney = ns.getPlayer().money;
-      const nodesInfo = getNodesStats(ns, ownedNodesNumber);
-      const efficientSpendingList = getEfficientSpendingList(ns, ownedNodesNumber, nodesInfo, playerMoney);
-
-      // If we reached our wanted nodes number, remove the possibility to buy a new one
-      if (ownedNodesNumber === maxWantedNodes) {
-        efficientSpendingList.filter((x) => x.upgradeType !== "node");
-      }
-
-      // Basically, if we can't upgrade anything and we reached our max wanted nodes number
-      // efficientSpendingList will be empty
-      if (efficientSpendingList.length === 0) break;
-
-      // Due to desc sort, 1st index is the best choice to upgrade
-      const upgradeNodeIndex = efficientSpendingList[0].nodeIndex;
-      const upgradeType = efficientSpendingList[0].upgradeType;
-
-      // Execute different things depending on best upgrade type
-      if (upgradeType === "node") {
-        ns.hacknet.purchaseNode();
-        // After buying we (almost?) always have enough money to upgrade it directly
-        // So skip next steps
-        continue;
-      } else if (upgradeType === "level") {
-        ns.hacknet.upgradeLevel(upgradeNodeIndex);
-      } else if (upgradeType === "ram") {
-        ns.hacknet.upgradeRam(upgradeNodeIndex);
-      } else {
-        ns.hacknet.upgradeCore(upgradeNodeIndex);
-      }
-
-      // Return the cheapest upgrade cost found among the list
-      minUpgradeCost = efficientSpendingList.reduce((prev, curr) =>
-        prev.upgradeCost < curr.upgradeCost ? prev : curr
-      ).upgradeCost;
-
-      await ns.sleep(1);
+    // If we reached our wanted nodes number, remove the possibility to buy a new one
+    if (ownedNodesNumber === maxWantedNodes) {
+      efficientSpendingList = efficientSpendingList.filter((x) => x.upgradeType !== "node");
     }
-  }
 
+    // Basically, if we can't upgrade anything and we reached our max wanted nodes number
+    // efficientSpendingList will be empty
+    if (efficientSpendingList.length === 0) break;
+
+    // Due to desc sort, 1st index is the best choice to upgrade
+    const upgradeNodeIndex = efficientSpendingList[0].nodeIndex;
+    const upgradeType = efficientSpendingList[0].upgradeType;
+
+    // Execute different things depending on best upgrade type
+    if (upgradeType === "node") {
+      ns.hacknet.purchaseNode();
+      // After buying we (almost?) always have enough money to upgrade it directly
+      // So skip next steps
+      continue;
+    } else if (upgradeType === "level") {
+      ns.hacknet.upgradeLevel(upgradeNodeIndex);
+    } else if (upgradeType === "ram") {
+      ns.hacknet.upgradeRam(upgradeNodeIndex);
+    } else {
+      ns.hacknet.upgradeCore(upgradeNodeIndex);
+    }
+
+    // Return the cheapest upgrade cost found among the list
+    minUpgradeCost = efficientSpendingList.reduce((prev, curr) =>
+      prev.upgradeCost < curr.upgradeCost ? prev : curr
+    ).upgradeCost;
+
+    await ns.sleep(1);
+  }
 }
 
 /** @param {NS} ns */
