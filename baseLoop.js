@@ -54,14 +54,17 @@ function getTargetRequiredGrowthRun(ns, serverName, growthTarget, growthRunsCap,
 async function growServer(ns, serverName) {
   let requiredGrowthRun = 10;
   let i = 0;
+  let growthPercentResult = Infinity;
 
-  // Also break the loop if the server currently has max money
-  while (i < requiredGrowthRun && ns.getServerMaxMoney(serverName) !== ns.getServerMoneyAvailable(serverName)) {
+  // Also break the loop if the server currently has less than half of max money and if growth is not worth it
+  while (
+    i < requiredGrowthRun &&
+    ns.getServerMoneyAvailable(serverName) <= ns.getServerMaxMoney(serverName) / 2 &&
+    // Tricky shit here, ns.grow() is not returning percent as number but as 1,"percent" (i.e: 12% = 1.12)
+    growthPercentResult > 1.05
+  ) {
     ns.print(`${requiredGrowthRun - i} grow run(s) required.`);
-    await ns.grow(serverName);
-
-    // Because we are running same scripts on same target on multiple servers,
-    // we need to update the number of grow() runs after each grow() run
+    growthPercentResult = await ns.grow(serverName);
     i++;
   }
 }
